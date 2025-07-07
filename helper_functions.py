@@ -13,6 +13,7 @@ import random
 from timeit import default_timer as timer
 from tqdm.auto import tqdm
 from pathlib import Path
+from typing import Union
 import json
 import os
 
@@ -137,6 +138,39 @@ def save_results(dir_name: str, file_name: str, results):
         json.dump(all_results, f, indent=4)
 
     return results_file
+
+
+def load_results(dir_name: str, file_name: str, run: Union[str, int] = "latest") -> pd.DataFrame:
+    """
+    Load a specific training run from a results file and return it as a DataFrame.
+
+    Args:
+        dir_name (str): Directory containing the results file.
+        file_name (str): Name of the JSON file (without `.json`).
+        run (str or int): Which run to load. Options:
+                          - "latest" (default): most recent run
+                          - "all": returns the entire dictionary
+                          - int: specific run number, e.g., 2 → "run_2"
+
+    Returns:
+        pd.DataFrame: DataFrame of the selected run (or full dict if run='all')
+    """
+    path = Path(dir_name) / f"{file_name}.json"
+
+    if not path.exists():
+        raise FileNotFoundError(f"No such file: {path}")
+
+    with open(path, "r") as f:
+        all_runs = json.load(f)
+
+    if run == "all":
+        return all_runs  # return raw dict
+    elif run == "latest":
+        run_key = max(all_runs, key=lambda k: int(k.split("_")[1]))
+    else:
+        run_key = f"run_{run}"
+
+    return pd.DataFrame(all_runs[run_key])
 
 
 def predict_compare(test_data: torchvision.datasets.ImageFolder,
