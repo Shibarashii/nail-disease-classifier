@@ -3,12 +3,14 @@ import torchvision
 import torchmetrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
+import torchvision.transforms as T
 from torch import nn
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import random
+from PIL import Image
 
 from timeit import default_timer as timer
 from tqdm.auto import tqdm
@@ -228,3 +230,51 @@ def predict_compare(test_data: torchvision.datasets.ImageFolder,
             plt.title(title_text, fontsize=10, c="r")
 
         plt.axis(False)
+
+
+def make_predictions(model: torch.nn.Module,
+                     test_dataloader: torch.utils.data.DataLoader,
+                     test_data: torchvision.datasets.ImageFolder,
+                     device: torch.device):
+    """Makes predictions and returns `y_preds` and `y_true`"""
+    y_preds = []
+
+    model.eval()
+    with torch.inference_mode():
+        for X, y, in tqdm(test_dataloader, desc="Making predictions"):
+            X, y = X.to(device), y.to(device)
+            y_logits = model(X)
+            y_pred = torch.softmax(y_logits.squeeze(), dim=1).argmax(dim=1)
+            y_preds.append(y_pred.cpu())
+
+    y_preds = torch.cat(y_preds)
+    y_true = torch.tensor(test_data.targets)
+
+    return y_preds, y_true
+
+
+def make_single_prediction(model: torch.nn.Module,
+                           image_path: Path,
+                           transforms: torchvision.transforms,
+                           device: torch.device):
+    if not transforms:
+        # Normalization and transforming data into tensors
+        transforms = T.Compose([
+            T.Resize(size=(224, 224)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225])
+        ])
+
+    # Load and preprocess image
+    image = Image.open(image_path).convert("RGB")
+    image_tensor = transforms(image).unsqueeze(0).to(
+        device)  # Add batch dim and move to device
+
+    model.eval()
+    with torch.inference_mode():
+        output = model(image_tensor)  # logits
+        pred_prob = torch.softmax(output, dim=1).squeeze(0)
+        pred_class = pred_prob.argmax(dim=1).item()
+
+    return pred_prob, pred_class
