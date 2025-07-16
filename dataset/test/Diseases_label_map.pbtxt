@@ -1,0 +1,55 @@
+item {
+    name: "Acral Lentiginous Melanoma",
+    id: 1,
+    display_name: "Acral Lentiginous Melanoma"
+}
+item {
+    name: "Beaus Line",
+    id: 2,
+    display_name: "Beaus Line"
+}
+item {
+    name: "Blue Finger",
+    id: 3,
+    display_name: "Blue Finger"
+}
+item {
+    name: "Clubbing",
+    id: 4,
+    display_name: "Clubbing"
+}
+item {
+    name: "Healthy Nail",
+    id: 5,
+    display_name: "Healthy Nail"
+}
+item {
+    name: "Koilonychia",
+    id: 6,
+    display_name: "Koilonychia"
+}
+item {
+    name: "Lindsay-s Nail",
+    id: 7,
+    display_name: "Lindsay-s Nail"
+}
+item {
+    name: "Muehrckes Lines",
+    id: 8,
+    display_name: "Muehrckes Lines"
+}
+item {
+    name: "Onychogryphosis",
+    id: 9,
+    display_name: "Onychogryphosis"
+}
+item {
+    name: "Pitting",
+    id: 10,
+    display_name: "Pitting"
+}
+item {
+    name: "Terry-s Nail",
+    id: 11,
+    display_name: "Terry-s Nail"
+}
