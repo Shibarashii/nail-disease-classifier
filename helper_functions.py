@@ -1,7 +1,7 @@
 import torch
 import torchvision
 import torchmetrics
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as T
 from torch import nn
@@ -18,6 +18,49 @@ from pathlib import Path
 from typing import Union
 import json
 import os
+
+from collections import Counter
+
+
+def get_class_distribution(dataset, subset_name):
+    if isinstance(dataset, Subset):
+        # Access the underlying dataset's targets using indices
+        targets = [dataset.dataset.samples[i][1] for i in dataset.indices]
+    else:
+        # Regular ImageFolder
+        targets = [label for _, label in dataset.samples]
+
+    class_counts = Counter(targets)
+
+    print(f"\nClass distribution in {subset_name}:")
+    for class_idx, count in sorted(class_counts.items()):
+        class_name = dataset.dataset.classes[class_idx] if isinstance(
+            dataset, Subset) else dataset.classes[class_idx]
+        print(f"{class_name:25}: {count}")
+
+
+def plot_images(data_dir: Path,
+                transforms: T = None,
+                random_seed: int = None):
+    random.seed(random_seed)
+
+    image_path_list = list(data_dir.glob("*/*/*.jpg"))
+    fig = plt.figure(figsize=(10, 7))
+    rows, cols = 3, 3
+
+    for i in range(1, rows * cols + 1):
+        random_img_path = random.choice(image_path_list)
+        img_class = random_img_path.parent.stem
+        fig.add_subplot(rows, cols, i)
+        random_img = Image.open(random_img_path)
+
+        if transforms:
+            transformed_img = transforms(random_img)
+            plt.imshow(transformed_img.permute(1, 2, 0))
+        else:
+            plt.imshow(random_img)
+        plt.title(f"{img_class} ({random_img.height}, {random_img.width})")
+        plt.axis(False)
 
 
 def train_step(model: torch.nn.Module,
