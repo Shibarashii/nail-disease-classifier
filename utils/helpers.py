@@ -130,7 +130,8 @@ def train_model(epochs: int,
                 criterion: torch.nn.Module,
                 optimizer: torch.optim.Optimizer,
                 accuracy_fn,
-                device: torch.device):
+                device: torch.device,
+                scheduler: torch.optim.lr_scheduler._LRScheduler = None):
 
     # Create  empty results dictionary
     results = {"train_loss": [],
@@ -153,6 +154,9 @@ def train_model(epochs: int,
         results["train_acc"].append(train_acc.item())
         results["valid_loss"].append(test_loss.item())
         results["valid_acc"].append(test_acc.item())
+
+        if scheduler:
+            scheduler.step()
 
     end_time = timer()
     training_time = end_time - start_time
