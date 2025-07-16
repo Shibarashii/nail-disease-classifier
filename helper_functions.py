@@ -275,6 +275,6 @@ def make_single_prediction(model: torch.nn.Module,
     with torch.inference_mode():
         output = model(image_tensor)  # logits
         pred_prob = torch.softmax(output, dim=1).squeeze(0)
-        pred_class = pred_prob.argmax(dim=1).item()
+        pred_class = pred_prob.argmax().item()
 
     return pred_prob, pred_class
