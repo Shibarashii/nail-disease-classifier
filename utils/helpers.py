@@ -131,9 +131,9 @@ def train_model(epochs: int,
                 optimizer: torch.optim.Optimizer,
                 accuracy_fn,
                 device: torch.device,
-                scheduler: torch.optim.lr_scheduler._LRScheduler = None):
+                scheduler=None,
+                scheduler_mode: str = "epoch"):
 
-    # Create  empty results dictionary
     results = {"train_loss": [],
                "train_acc": [],
                "valid_loss": [],
@@ -144,19 +144,22 @@ def train_model(epochs: int,
     for epoch in tqdm(range(epochs)):
         train_loss, train_acc = train_step(
             model, train_dataloader, criterion, optimizer, accuracy_fn, device)
-        test_loss, test_acc = valid_step(
+        val_loss, val_acc = valid_step(
             model, valid_dataloader, criterion, accuracy_fn, device)
 
-        print(f"Epoch: {epoch} | Train loss: {train_loss:.4f}, Train accuracy : {train_acc:.4f} | Valid loss: {test_loss:.4f}, Valid accuracy: {test_acc:.4f}")
+        print(f"Epoch: {epoch} | Train loss: {train_loss:.4f}, Train accuracy : {train_acc:.4f} | Valid loss: {val_loss:.4f}, Valid accuracy: {val_acc:.4f}")
 
-        # Update results dictionary
         results["train_loss"].append(train_loss.item())
         results["train_acc"].append(train_acc.item())
-        results["valid_loss"].append(test_loss.item())
-        results["valid_acc"].append(test_acc.item())
+        results["valid_loss"].append(val_loss.item())
+        results["valid_acc"].append(val_acc.item())
 
+        # Scheduler step depending on mode
         if scheduler:
-            scheduler.step()
+            if scheduler_mode == "plateau":
+                scheduler.step(val_loss)  # needs validation loss
+            elif scheduler_mode == "epoch":
+                scheduler.step()
 
     end_time = timer()
     training_time = end_time - start_time
