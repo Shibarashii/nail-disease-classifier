@@ -19,6 +19,10 @@ from typing import Union
 import json
 import os
 
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import show_cam_on_image
+
 from collections import Counter
 
 
@@ -305,12 +309,12 @@ def make_predictions(model: torch.nn.Module,
 
 def make_single_prediction(model: torch.nn.Module,
                            image_path: Path,
-                           transforms: torchvision.transforms,
-                           device: torch.device):
-    if not transforms:
-        # Normalization and transforming data into tensors
+                           class_names: list,
+                           transforms: T.Compose = None,
+                           device: torch.device = torch.device("cpu")):
+    if transforms is None:
         transforms = T.Compose([
-            T.Resize(size=(224, 224)),
+            T.Resize((224, 224)),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406],
                         std=[0.229, 0.224, 0.225])
@@ -318,13 +322,48 @@ def make_single_prediction(model: torch.nn.Module,
 
     # Load and preprocess image
     image = Image.open(image_path).convert("RGB")
-    image_tensor = transforms(image).unsqueeze(0).to(
-        device)  # Add batch dim and move to device
+    image_resized = image.resize((224, 224))
+    original_image = np.array(image_resized).astype(
+        np.float32) / 255.0  # For CAM
+
+    image_tensor = transforms(image).unsqueeze(0).to(device)
 
     model.eval()
+    model.to(device)
+
     with torch.inference_mode():
-        output = model(image_tensor)  # logits
+        output = model(image_tensor)
         pred_prob = torch.softmax(output, dim=1).squeeze(0)
         pred_class = pred_prob.argmax().item()
 
-    return pred_prob, pred_class
+    # Grad-CAM setup
+    try:
+        target_layer = model.features[-1]
+    except AttributeError:
+        raise ValueError(
+            "Could not locate target layer for GradCAM. Adjust this for your model.")
+
+    cam = GradCAM(model=model, target_layers=[target_layer])
+    grayscale_cam = cam(input_tensor=image_tensor,
+                        targets=[ClassifierOutputTarget(pred_class)])[0]
+    cam_img = show_cam_on_image(original_image, grayscale_cam, use_rgb=True)
+
+    print(f"\n Predicted class index: {pred_class}")
+    print(" Confidence values:")
+    for i, prob in enumerate(pred_prob):
+        print(f"{class_names[i]}: {prob * 100:.2f}")
+
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    ax[0].imshow(image)
+    ax[0].axis("off")
+    ax[0].set_title("Original Image")
+
+    ax[1].imshow(cam_img)
+    ax[1].axis("off")
+    ax[1].set_title(
+        f"Prediction: {class_names[pred_class]}\nConfidence: {pred_prob.max() * 100:.2f}%")
+
+    plt.tight_layout()
+    plt.show()
+
+    return pred_prob, pred_class, cam_img
