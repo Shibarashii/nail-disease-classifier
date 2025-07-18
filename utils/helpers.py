@@ -307,11 +307,35 @@ def make_predictions(model: torch.nn.Module,
     return y_preds, y_true
 
 
+def __get_gradcam_config(model_name: str, model: torch.nn.Module):
+    if "efficientnet" in model_name:
+        return model.features[-1], None
+    elif "resnet" in model_name:
+        return model.layer4[-1], None
+    elif "vgg" in model_name:
+        return model.features[-1], None
+    elif "regnet" in model_name:
+        return model.trunk_output, None
+    elif "swin" in model_name:
+        def reshape_transform(tensor, height=7, width=7):
+            result = tensor.reshape(tensor.size(
+                0), height, width, tensor.size(2))
+            result = result.permute(0, 3, 1, 2)
+            return result
+
+        target_layer = model.features[3].blocks[-1].norm2
+        return target_layer, reshape_transform
+    else:
+        raise ValueError(f"No Grad-CAM config for model '{model_name}'")
+
+
 def make_single_prediction(model: torch.nn.Module,
                            image_path: Path,
                            class_names: list,
+                           model_name: str = "Model",
                            transforms: T.Compose = None,
-                           device: torch.device = torch.device("cpu")):
+                           device: torch.device = torch.device("cpu"),
+                           show_confidence: bool = False):
     if transforms is None:
         transforms = T.Compose([
             T.Resize((224, 224)),
@@ -320,50 +344,37 @@ def make_single_prediction(model: torch.nn.Module,
                         std=[0.229, 0.224, 0.225])
         ])
 
-    # Load and preprocess image
     image = Image.open(image_path).convert("RGB")
     image_resized = image.resize((224, 224))
-    original_image = np.array(image_resized).astype(
-        np.float32) / 255.0  # For CAM
-
+    original_image = np.array(image_resized).astype(np.float32) / 255.0
     image_tensor = transforms(image).unsqueeze(0).to(device)
 
-    model.eval()
-    model.to(device)
-
+    model.eval().to(device)
     with torch.inference_mode():
         output = model(image_tensor)
         pred_prob = torch.softmax(output, dim=1).squeeze(0)
         pred_class = pred_prob.argmax().item()
 
-    # Grad-CAM setup
+    # Grad-CAM
     try:
-        target_layer = model.features[-1]
-    except AttributeError:
-        raise ValueError(
-            "Could not locate target layer for GradCAM. Adjust this for your model.")
+        target_layer, reshape_transform = __get_gradcam_config(
+            model_name.lower(), model)
+        cam = GradCAM(model=model,
+                      target_layers=[target_layer],
+                      reshape_transform=reshape_transform)
+        grayscale_cam = cam(input_tensor=image_tensor,
+                            targets=[ClassifierOutputTarget(pred_class)])[0]
+        cam_img = show_cam_on_image(
+            original_image, grayscale_cam, use_rgb=True)
+    except Exception as e:
+        print(f"Grad-CAM failed: {e}")
+        cam_img = original_image  # fallback
 
-    cam = GradCAM(model=model, target_layers=[target_layer])
-    grayscale_cam = cam(input_tensor=image_tensor,
-                        targets=[ClassifierOutputTarget(pred_class)])[0]
-    cam_img = show_cam_on_image(original_image, grayscale_cam, use_rgb=True)
-
-    print(f"\n Predicted class index: {pred_class}")
-    print(" Confidence values:")
-    for i, prob in enumerate(pred_prob):
-        print(f"{class_names[i]}: {prob * 100:.2f}")
-
-    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
-    ax[0].imshow(image)
-    ax[0].axis("off")
-    ax[0].set_title("Original Image")
-
-    ax[1].imshow(cam_img)
-    ax[1].axis("off")
-    ax[1].set_title(
-        f"Prediction: {class_names[pred_class]}\nConfidence: {pred_prob.max() * 100:.2f}%")
-
-    plt.tight_layout()
-    plt.show()
+    if show_confidence:
+        print("\n", model_name)
+        print(f"Predicted class index: {class_names[pred_class]}")
+        print("Confidence values:")
+        for i, prob in enumerate(pred_prob):
+            print(f"{class_names[i]}: {prob * 100:.2f}%")
 
     return pred_prob, pred_class, cam_img
