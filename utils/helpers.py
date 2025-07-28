@@ -323,7 +323,7 @@ def __get_gradcam_config(model_name: str, model: torch.nn.Module):
             result = result.permute(0, 3, 1, 2)
             return result
 
-        target_layer = model.features[3].blocks[-1].norm2
+        target_layer = model.features[3].SwinTransformerBlockV2[-1].norm2
         return target_layer, reshape_transform
     else:
         raise ValueError(f"No Grad-CAM config for model '{model_name}'")
