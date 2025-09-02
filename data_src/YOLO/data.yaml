@@ -1,0 +1,6 @@
+path: /home/shiba/Programming/nail-disease-classifier/data_src/YOLO
+train: train/images
+val: valid/images
+test: test/images
+nc: 11
+names: ['Acral Lentiginous Melanoma', 'Beaus Line', 'Blue Finger', 'Clubbing', 'Healthy Nail', 'Koilonychia', 'Lindsay-s Nail', 'Muehrckes Lines', 'Onychogryphosis', 'Pitting', 'Terry-s Nail']
