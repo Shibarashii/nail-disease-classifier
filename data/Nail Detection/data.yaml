@@ -1,4 +1,4 @@
-path: /home/shiba/Programming/nail-disease-classifier/data_src/YOLO
+path: /content/drive/MyDrive/Nail object detection
 train: images/train
 val: images/valid
 test: images/test
